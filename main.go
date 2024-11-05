@@ -536,6 +536,7 @@ func (s *ProxyService) completions(c *gin.Context) {
 	//拷备request body
 	reqbody := make([]byte, len(body))
 	copy(reqbody, body)
+	log.Println("request body:", string(reqbody))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, proxyUrl, io.NopCloser(bytes.NewBuffer(body)))
 	if nil != err {
 		c.AbortWithStatus(http.StatusInternalServerError)
