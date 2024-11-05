@@ -12,6 +12,7 @@ import (
 	"golang.org/x/net/http2"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,7 +20,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-    "math/rand"
 )
 
 const DefaultInstructModel = "gpt-3.5-turbo-instruct"
@@ -28,7 +28,7 @@ const StableCodeModelPrefix = "stable-code"
 
 const DeepSeekCoderModel = "deepseek-coder"
 
-var SiliconflowModels = []string{"deepseek-ai/DeepSeek-V2.5", "deepseek-ai/DeepSeek-Coder-V2-Instruct", "Qwen/Qwen2.5-Coder-7B-Instruct"}
+var SiliconflowModels = []string{"deepseek-ai/DeepSeek-V2.5", "deepseek-ai/DeepSeek-Coder-V2-Instruct", "Qwen/Qwen2.5-Coder-7B-Instruct", "qwen2.5-coder:latest"}
 
 type config struct {
 	Bind                 string            `json:"bind"`
@@ -194,6 +194,11 @@ func (s *ProxyService) InitRoutes(e *gin.Engine) {
 	e.GET("/_ping", s.pong)
 	e.GET("/models", s.models)
 	e.GET("/v1/models", s.models)
+	e.GET("/copilot_internal/v2/token", s.token)
+	e.POST("/login/oauth/access_token", s.access)
+	e.POST("/login/device/code", s.code)
+	e.GET("/user", s.user)
+	e.GET("/api/v3/user", s.user)
 	authToken := s.cfg.AuthToken // replace with your dynamic value as needed
 	if authToken != "" {
 		// 鉴权
@@ -206,6 +211,9 @@ func (s *ProxyService) InitRoutes(e *gin.Engine) {
 			v1.POST("/v1/engines/copilot-codex/completions", s.codeCompletions)
 		}
 	} else {
+		e.POST("/chat/completions", s.completions)
+		e.POST("/engines/copilot-codex/completions", s.codeCompletions)
+
 		e.POST("/v1/chat/completions", s.completions)
 		e.POST("/v1/engines/copilot-codex/completions", s.codeCompletions)
 
@@ -227,7 +235,99 @@ func (s *ProxyService) pong(c *gin.Context) {
 		Ns1:    "200 OK",
 	})
 }
-
+func (s *ProxyService) user(c *gin.Context) {
+	//	模拟数据：{"avatar_url":"https://avatars.githubusercontent.com/u/9919?v=4","bio":null,"blog":"","company":null,"created_at":"2008-05-11T04:37:31Z","email":null,"events_url":"https://api.github.com/users/github/events{/privacy}","followers":42848,"followers_url":"https://api.github.com/users/github/followers","following":0,"following_url":"https://api.github.com/users/github/following{/other_user}","gists_url":"https://api.github.com/users/github/gists{/gist_id}","gravatar_id":"","hireable":null,"html_url":"https://github.com/github","id":9919,"location":"San Francisco, CA","login":"github","name":"GitHub","node_id":"DEyOk9yZ2FuaXphdGlvbjk5MTk=","organizations_url":"https://api.github.com/users/github/orgs","public_gists":0,"public_repos":498,"received_events_url":"https://api.github.com/users/github/received_events","repos_url":"https://api.github.com/users/github/repos","site_admin":false,"starred_url":"https://api.github.com/users/github/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/github/subscriptions","twitter_username":null,"type":"User","updated_at":"2022-11-29T19:44:55Z","url":"https://api.github.com/users/github"}
+	c.JSON(http.StatusOK, gin.H{
+		"avatar_url":          "https://avatars.githubusercontent.com/u/9919?v=4",
+		"bio":                 nil,
+		"blog":                "",
+		"company":             nil,
+		"created_at":          "2008-05-11T04:37:31Z",
+		"email":               nil,
+		"events_url":          "https://api.github.com/users/github/events{/privacy}",
+		"followers":           42848,
+		"followers_url":       "https://api.github.com/users/github/followers",
+		"following":           0,
+		"following_url":       "https://api.github.com/users/github/following{/other_user}",
+		"gists_url":           "https://api.github.com/users/github/gists{/gist_id}",
+		"gravatar_id":         "",
+		"hireable":            nil,
+		"html_url":            "https://github.com/github",
+		"id":                  9919,
+		"location":            "San Francisco, CA",
+		"login":               "github",
+		"name":                "GitHub",
+		"node_id":             "DEyOk9yZ2FuaXphdGlvbjk5MTk=",
+		"organizations_url":   "https://api.github.com/users/github/orgs",
+		"public_gists":        0,
+		"public_repos":        498,
+		"received_events_url": "https://api.github.com/users/github/received_events",
+		"repos_url":           "https://api.github.com/users/github/repos",
+		"site_admin":          false,
+		"starred_url":         "https://api.github.com/users/github/starred{/owner}{/repo}",
+		"subscriptions_url":   "https://api.github.com/users/github/subscriptions",
+		"twitter_username":    nil,
+		"type":                "User",
+		"updated_at":          "2022-11-29T19:44:55Z",
+		"url":                 "https://api.github.com/users/github",
+	})
+}
+func (s *ProxyService) code(c *gin.Context) {
+	//	模拟数据：{"device_code":"900b3a0bc8a74de69b3c159ef8f35a14e163fb8b","user_code":"92b315","verification_uri":"https://copilot.ddlink.asia/login/device?user_code=92b315","expires_in":1800,"interval":5}
+	c.JSON(http.StatusOK, gin.H{
+		"device_code":      "900b3a0bc8a74de69b3c159ef8f35a14e163fb8b",
+		"expires_in":       1800,
+		"interval":         5,
+		"user_code":        "92b315",
+		"verification_uri": "https://hsw.com/login/device?user_code=92b315",
+	})
+}
+func (s *ProxyService) access(c *gin.Context) {
+	//模拟数据：{"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbiI6IjkyYjMxNSIsImNsaWVudCI6Ikl2MjNjdGZVUmtpTWZKNHhyNW12IiwiaXNzIjoidXNlciIsImV4cCI6MzQ2MDM3ODk0MiwibmJmIjoxNzMwMTg5NDcxLCJpYXQiOjE3MzAxODk0NzF9.QqsUpkO8D8kUtaPXOH_9OpT9TIn1ne_7REw2GRADhg0","scope":"","token_type":"bearer"}
+	c.JSON(http.StatusOK, gin.H{
+		"access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbiI6IjkyYjMxNSIsImNsaWVudCI6Ikl2MjNjdGZVUmtpTWZKNHhyNW12IiwiaXNzIjoidXNlciIsImV4cCI6MzQ2MDM3ODk0MiwibmJmIjoxNzMwMTg5NDcxLCJpYXQiOjE3MzAxODk0NzF9.QqsUpkO8D8kUtaPXOH_9OpT9TIn1ne_7REw2GRADhg0",
+		"scope":        "",
+		"token_type":   "bearer",
+	})
+}
+func (s *ProxyService) token(c *gin.Context) {
+	//	生成时间戳
+	now := time.Now()
+	expiresAt := now.Add(time.Minute * 30).Unix()
+	c.JSON(http.StatusOK, gin.H{
+		"annotations_enabled":                      true,
+		"chat_enabled":                             true,
+		"chat_jetbrains_enabled":                   true,
+		"code_quote_enabled":                       true,
+		"codesearch":                               true,
+		"copilot_ide_agent_chat_gpt4_small_prompt": false,
+		"copilotignore_enabled":                    false,
+		"endpoints": gin.H{
+			"api":            "https://api.hsw.com",
+			"origin-tracker": "https://origin-tracker.githubusercontent.com",
+			"proxy":          "https://copilot-proxy.hsw.com",
+			"telemetry":      "https://copilot-telemetry-service.copilot.ddlink.asia",
+		},
+		"expires_at":               expiresAt,
+		"individual":               true,
+		"intellij_editor_fetcher":  false,
+		"nes_enabled":              false,
+		"project":                  "copilot-proxy",
+		"prompt_8k":                true,
+		"public_suggestions":       "disabled",
+		"refresh_in":               1500,
+		"sku":                      "copilot_for_business_seat",
+		"snippy_load_test_enabled": false,
+		"telemetry":                "disabled",
+		"token":                    "chat=1;exp=" + strconv.FormatInt(expiresAt, 10) + ";sku=copilot_for_business_seat;st=dotcom;tid=d1a6b445-5779-4236-94e5-f697bf871ca3;u=github;8kp=1:1b39008c4009294dc0f4c7f5d0ea0aff49fa5f0ec574287378d9b114cc87845f",
+		"tracking_id":              "d1a6b445-5779-4236-94e5-f697bf871ca3",
+		"vs_editor_fetcher":        false,
+		"vsc_electron_fetcher":     false,
+		"vsc_panel_v2":             false,
+		"xcode":                    true,
+		"xcode_chat":               true,
+	})
+}
 func (s *ProxyService) models(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"data": []gin.H{
@@ -432,6 +532,10 @@ func (s *ProxyService) completions(c *gin.Context) {
 	}
 
 	proxyUrl := s.cfg.ChatApiBase + "/chat/completions"
+
+	//拷备request body
+	reqbody := make([]byte, len(body))
+	copy(reqbody, body)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, proxyUrl, io.NopCloser(bytes.NewBuffer(body)))
 	if nil != err {
 		c.AbortWithStatus(http.StatusInternalServerError)
@@ -478,7 +582,7 @@ func (s *ProxyService) completions(c *gin.Context) {
 }
 
 func contains(arr []string, str string) bool {
-    return strings.Contains(strings.Join(arr, ","), str)
+	return strings.Contains(strings.Join(arr, ","), str)
 }
 
 func (s *ProxyService) codeCompletions(c *gin.Context) {
@@ -497,7 +601,10 @@ func (s *ProxyService) codeCompletions(c *gin.Context) {
 	}
 
 	body = ConstructRequestBody(body, s.cfg)
-
+	//拷备request body
+	reqbody := make([]byte, len(body))
+	copy(reqbody, body)
+	log.Println("request body:", string(reqbody))
 	proxyUrl := s.cfg.CodexApiBase + "/completions"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, proxyUrl, io.NopCloser(bytes.NewBuffer(body)))
 	if nil != err {
@@ -506,7 +613,7 @@ func (s *ProxyService) codeCompletions(c *gin.Context) {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer " + getRandomApiKey(s.cfg.CodexApiKey))
+	req.Header.Set("Authorization", "Bearer "+getRandomApiKey(s.cfg.CodexApiKey))
 	if "" != s.cfg.CodexApiOrganization {
 		req.Header.Set("OpenAI-Organization", s.cfg.CodexApiOrganization)
 	}
@@ -547,12 +654,13 @@ func (s *ProxyService) codeCompletions(c *gin.Context) {
 
 // 随机取一个apiKey
 func getRandomApiKey(paramStr string) string {
-    params := strings.Split(paramStr, ",")
-    rand.Seed(time.Now().UnixNano())
-    randomIndex := rand.Intn(len(params))
+	params := strings.Split(paramStr, ",")
+	//rand.Seed(time.Now().UnixNano())
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	randomIndex := rand.Intn(len(params))
 	fmt.Println("Code completion API Key index:", randomIndex)
 	fmt.Println("Code completion API Key:", strings.TrimSpace(params[randomIndex]))
-    return strings.TrimSpace(params[randomIndex])
+	return strings.TrimSpace(params[randomIndex])
 }
 
 func ConstructRequestBody(body []byte, cfg *config) []byte {
@@ -571,7 +679,13 @@ func ConstructRequestBody(body []byte, cfg *config) []byte {
 			body, _ = sjson.SetBytes(body, "n", 1)
 		}
 	}
-
+	if strings.HasPrefix(cfg.CodeInstructModel, "qwen") {
+		if gjson.GetBytes(body, "suffix").String() == "" {
+			body, _ = sjson.SetBytes(body, "suffix", "\n\n")
+		}
+		body, _ = sjson.SetBytes(body, "stop.-1", "<|endoftext|>")
+		body, _ = sjson.SetBytes(body, "stop.-1", "<|im_start|>")
+	}
 	if strings.HasSuffix(cfg.ChatApiBase, "chat") {
 		// @Todo  constructWithChatModel
 		// 如果code base以chat结尾则构建chatModel，暂时没有好的prompt
